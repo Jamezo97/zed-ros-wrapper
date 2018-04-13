@@ -133,6 +133,7 @@ namespace zed_wrapper {
         int gpu_id;
         int zed_id;
         int depth_stabilization;
+        float max_depth;
         std::string odometry_DB;
         std::string svo_filepath;
 
@@ -782,6 +783,7 @@ namespace zed_wrapper {
             zed_id = 0;
             serial_number = 0;
             odometry_DB = "";
+            max_depth = 0;
 
             nh = getMTNodeHandle();
             nh_ns = getMTPrivateNodeHandle();
@@ -803,6 +805,7 @@ namespace zed_wrapper {
             nh_ns.getParam("gpu_id", gpu_id);
             nh_ns.getParam("zed_id", zed_id);
             nh_ns.getParam("depth_stabilization", depth_stabilization);
+            nh_ns.getParam("max_depth", max_depth);
             int tmp_sn = 0;
             nh_ns.getParam("serial_number", tmp_sn);
             if (tmp_sn > 0) serial_number = tmp_sn;
@@ -929,6 +932,10 @@ namespace zed_wrapper {
             }
 
             serial_number = zed.getCameraInformation().serial_number;
+
+            if(max_depth > 0) {
+                zed.setDepthMaxRangeValue(max_depth);
+            }
 
             //Reconfigure parameters
             server = boost::make_shared<dynamic_reconfigure::Server < zed_wrapper::ZedConfig >> ();

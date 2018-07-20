@@ -94,6 +94,7 @@ namespace zed_wrapper {
         ros::NodeHandle nh_ns;
         boost::shared_ptr<boost::thread> device_poll_thread;
         image_transport::Publisher pub_rgb;
+        image_transport::Publisher pub_grey;
         image_transport::Publisher pub_raw_rgb;
         image_transport::Publisher pub_left;
         image_transport::Publisher pub_raw_left;
@@ -551,6 +552,7 @@ namespace zed_wrapper {
             while (nh_ns.ok()) {
                 // Check for subscribers
                 int rgb_SubNumber = pub_rgb.getNumSubscribers();
+                int grey_SubNumber = pub_grey.getNumSubscribers();;
                 int rgb_raw_SubNumber = pub_raw_rgb.getNumSubscribers();
                 int left_SubNumber = pub_left.getNumSubscribers();
                 int left_raw_SubNumber = pub_raw_left.getNumSubscribers();
@@ -559,7 +561,7 @@ namespace zed_wrapper {
                 int depth_SubNumber = pub_depth.getNumSubscribers();
                 int cloud_SubNumber = pub_cloud.getNumSubscribers();
                 int odom_SubNumber = pub_odom.getNumSubscribers();
-                bool runLoop = (rgb_SubNumber + rgb_raw_SubNumber + left_SubNumber + left_raw_SubNumber + right_SubNumber + right_raw_SubNumber + depth_SubNumber + cloud_SubNumber + odom_SubNumber) > 0;
+                bool runLoop = (grey_SubNumber + rgb_SubNumber + rgb_raw_SubNumber + left_SubNumber + left_raw_SubNumber + right_SubNumber + right_raw_SubNumber + depth_SubNumber + cloud_SubNumber + odom_SubNumber) > 0;
 
                 runParams.enable_point_cloud = false;
                 if (cloud_SubNumber > 0)
@@ -664,7 +666,7 @@ namespace zed_wrapper {
                     }
 
                     // Publish the left_raw == rgb_raw image if someone has subscribed to
-                    if (left_raw_SubNumber > 0 || rgb_raw_SubNumber > 0) {
+                    if (left_raw_SubNumber > 0 || rgb_raw_SubNumber > 0 || grey_SubNumber > 0) {
                         // Retrieve RGBA Left image
                         zed.retrieveImage(leftZEDMat, sl::VIEW_LEFT_UNRECTIFIED);
                         cv::cvtColor(toCVMat(leftZEDMat), leftImRGB, CV_RGBA2RGB);
@@ -675,6 +677,15 @@ namespace zed_wrapper {
                         if (rgb_raw_SubNumber > 0) {
                             publishCamInfo(rgb_cam_info_raw_msg, pub_rgb_cam_info_raw, t);
                             publishImage(leftImRGB, pub_raw_rgb, rgb_frame_id, t);
+                        }
+                        if (grey_SubNumber > 0) {
+                            
+                            cv::Mat leftImGrey;
+                            cv::cvtColor(toCVMat(leftZEDMat), leftImGrey, CV_RGB2GRAY);
+
+                            pub_grey.publish(imageToROSmsg(leftImGrey, sensor_msgs::image_encodings::MONO8, rgb_frame_id, t));
+                            // publishImage(leftImGrey, pub_grey, rgb_frame_id, t); // rgb is the left image
+                            NODELET_INFO_STREAM("PUB " << endl);
                         }
                     }
 
@@ -842,6 +853,7 @@ namespace zed_wrapper {
 
             string rgb_topic = "rgb/" + img_topic;
             string rgb_raw_topic = "rgb/" + img_raw_topic;
+            string grey_topic = "grey/" + img_raw_topic;
             string rgb_cam_info_topic = "rgb/camera_info";
             string rgb_cam_info_raw_topic = "rgb/camera_info_raw";
             rgb_frame_id = depth_frame_id;
@@ -862,6 +874,7 @@ namespace zed_wrapper {
             string odometry_topic = "odom";
 
             nh_ns.getParam("rgb_topic", rgb_topic);
+            nh_ns.getParam("grey_topic", grey_topic);
             nh_ns.getParam("rgb_raw_topic", rgb_raw_topic);
             nh_ns.getParam("rgb_cam_info_topic", rgb_cam_info_topic);
             nh_ns.getParam("rgb_cam_info_raw_topic", rgb_cam_info_raw_topic);
@@ -955,6 +968,8 @@ namespace zed_wrapper {
             image_transport::ImageTransport it_zed(nh);
             pub_rgb = it_zed.advertise(rgb_topic, 1); //rgb
             NODELET_INFO_STREAM("Advertized on topic " << rgb_topic);
+            pub_grey = it_zed.advertise(grey_topic, 1); //grey
+            NODELET_INFO_STREAM("Advertized on topic " << grey_topic);
             pub_raw_rgb = it_zed.advertise(rgb_raw_topic, 1); //rgb raw
             NODELET_INFO_STREAM("Advertized on topic " << rgb_raw_topic);
             pub_left = it_zed.advertise(left_topic, 1); //left
